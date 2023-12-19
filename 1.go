@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/nlopes/slack"
@@ -44,6 +45,11 @@ func processImages(api *slack.Client, directoryPath, slackChannel string) error 
 	if err != nil {
 		return err
 	}
+
+	// Sort files by creation time (oldest first)
+	sort.Slice(files, func(i, j int) bool {
+		return files[i].ModTime().Before(files[j].ModTime())
+	})
 
 	// Iterate through files in the directory
 	for _, file := range files {
