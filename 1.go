@@ -7,8 +7,16 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 
+	"github.com/fsnotify/fsnotify"
 	"github.com/nlopes/slack"
+)
+
+var (
+	watcher *fsnotify.Watcher
+	mu      sync.Mutex
 )
 
 func main() {
@@ -25,25 +33,81 @@ func main() {
 	// Create a Slack client
 	api := slack.New(slackToken)
 
-	// Process image files in the specified directory
-	err := processImages(api, directoryPath, slackChannel)
-	if err != nil {
-		fmt.Println("Error:", err)
-		os.Exit(1)
+	// Create a watcher
+	watcher, _ = fsnotify.NewWatcher()
+	defer watcher.Close()
+
+	// Watch for events in the specified directory
+	go watchDirectory(directoryPath)
+
+	// Process images in the specified directory
+	processImages(api, directoryPath, slackChannel)
+
+	// Keep the program running
+	select {}
+}
+
+func watchDirectory(directoryPath string) {
+	for {
+		select {
+		case event, ok := <-watcher.Events:
+			if !ok {
+				return
+			}
+
+			if event.Op&fsnotify.Create == fsnotify.Create {
+				// If a new file is created, process it
+				go handleNewFile(event.Name)
+			}
+		case err, ok := <-watcher.Errors:
+			if !ok {
+				return
+			}
+			fmt.Println("Error watching directory:", err)
+		}
 	}
 }
 
-func processImages(api *slack.Client, directoryPath, slackChannel string) error {
-	// Create a "processed" folder if it doesn't exist
-	processedFolder := filepath.Join(directoryPath, "processed")
-	if err := os.MkdirAll(processedFolder, 0755); err != nil {
-		return err
-	}
+func handleNewFile(filePath string) {
+	// Ensure the new file is an image
+	if isImage(filepath.Base(filePath)) {
+		mu.Lock()
+		defer mu.Unlock()
 
+		// Create a Slack client
+		api := slack.New(os.Getenv("SLACK_TOKEN"))
+
+		// Upload the new image to Slack
+		err := uploadImageToSlack(api, filePath, os.Getenv("SLACK_CHANNEL"))
+		if err != nil {
+			fmt.Printf("File %s not uploaded. Error: %v\n", filepath.Base(filePath), err)
+			return
+		}
+
+		// Move the processed image to the "processed" folder
+		processedFolder := filepath.Join(filepath.Dir(filePath), "processed")
+		err = os.MkdirAll(processedFolder, 0755)
+		if err != nil {
+			fmt.Printf("Error creating processed folder: %v\n", err)
+			return
+		}
+
+		destPath := filepath.Join(processedFolder, filepath.Base(filePath))
+		err = os.Rename(filePath, destPath)
+		if err != nil {
+			fmt.Printf("Error moving file %s to processed folder: %v\n", filepath.Base(filePath), err)
+		} else {
+			fmt.Printf("File %s uploaded to Slack and moved to processed folder.\n", filepath.Base(filePath))
+		}
+	}
+}
+
+func processImages(api *slack.Client, directoryPath, slackChannel string) {
 	// List files in the specified directory
 	files, err := ioutil.ReadDir(directoryPath)
 	if err != nil {
-		return err
+		fmt.Println("Error reading directory:", err)
+		os.Exit(1)
 	}
 
 	// Sort files by creation time (oldest first)
@@ -66,6 +130,13 @@ func processImages(api *slack.Client, directoryPath, slackChannel string) error 
 			}
 
 			// Move the processed image to the "processed" folder
+			processedFolder := filepath.Join(directoryPath, "processed")
+			err = os.MkdirAll(processedFolder, 0755)
+			if err != nil {
+				fmt.Printf("Error creating processed folder: %v\n", err)
+				continue
+			}
+
 			destPath := filepath.Join(processedFolder, file.Name())
 			err = os.Rename(filePath, destPath)
 			if err != nil {
@@ -76,7 +147,9 @@ func processImages(api *slack.Client, directoryPath, slackChannel string) error 
 		}
 	}
 
-	return nil
+	// Sleep for a while before processing again
+	time.Sleep(5 * time.Second)
+	processImages(api, directoryPath, slackChannel)
 }
 
 func uploadImageToSlack(api *slack.Client, filePath, slackChannel string) error {
