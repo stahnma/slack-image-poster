@@ -12,6 +12,8 @@ import (
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/nlopes/slack"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
 
 var (
@@ -19,51 +21,45 @@ var (
 	mu      sync.Mutex
 )
 
-func main() {
-	// Get Slack API token, directory path, Slack channel from environment variables
-	slackToken := os.Getenv("SLACK_TOKEN")
-	directoryPath := os.Getenv("IMAGE_DIRECTORY")
-	slackChannel := os.Getenv("SLACK_CHANNEL")
+func init() {
+	// Set up Viper to use command line flags
+	pflag.String("config", "", "config file (default is $HOME/.your_app.yaml)")
+	pflag.Bool("ready-systemd", false, "flag to indicate systemd readiness")
 
-	if slackToken == "" || directoryPath == "" || slackChannel == "" {
-		fmt.Println("Please set SLACK_TOKEN, IMAGE_DIRECTORY, and SLACK_CHANNEL environment variables.")
-		os.Exit(1)
-	}
-
-	// Create a Slack client
-	api := slack.New(slackToken)
-
-	// Create a watcher
-	watcher, _ = fsnotify.NewWatcher()
-	defer watcher.Close()
-
-	// Watch for events in the specified directory
-	go watchDirectory(directoryPath)
-
-	// Process images in the specified directory
-	processImages(api, directoryPath, slackChannel)
-
-	// Keep the program running
-	select {}
+	// Bind the command line flags to Viper
+	viper.BindPFlags(pflag.CommandLine)
 }
 
-func watchDirectory(directoryPath string) {
+func watchDirectory(directoryPath string, done chan struct{}) {
+	if err := watcher.Add(directoryPath); err != nil {
+		fmt.Println("Error watching directory:", err)
+		return
+	}
 	for {
 		select {
 		case event, ok := <-watcher.Events:
 			if !ok {
+				fmt.Println("watcher.Events channel closed. Exiting watchDirectory.")
 				return
 			}
 
+			// Useful for debugging
+			// fmt.Println("Event received:", event)
+
 			if event.Op&fsnotify.Create == fsnotify.Create {
-				// If a new file is created, process it
 				go handleNewFile(event.Name)
 			}
+
 		case err, ok := <-watcher.Errors:
 			if !ok {
+				fmt.Println("watcher.Errors channel closed. Exiting watchDirectory.")
 				return
 			}
 			fmt.Println("Error watching directory:", err)
+		case <-done:
+			fmt.Println("Received signal to exit. Exiting watchDirectory.")
+			return
+
 		}
 	}
 }
@@ -74,7 +70,6 @@ func handleNewFile(filePath string) {
 		mu.Lock()
 		defer mu.Unlock()
 
-		// Create a Slack client
 		api := slack.New(os.Getenv("SLACK_TOKEN"))
 
 		// Upload the new image to Slack
@@ -97,7 +92,9 @@ func handleNewFile(filePath string) {
 		if err != nil {
 			fmt.Printf("Error moving file %s to processed folder: %v\n", filepath.Base(filePath), err)
 		} else {
-			fmt.Printf("File %s uploaded to Slack and moved to processed folder.\n", filepath.Base(filePath))
+			//	fmt.Printf("File %s uploaded to Slack and moved to processed folder.\n", filepath.Base(filePath))
+			t := time.Now()
+			fmt.Printf("[SND] %s %s sent to Slack and moved to \"processed\" directory.\n", t.Format("2006/01/02 - 15:04:05"), filepath.Base(filePath))
 		}
 	}
 }
@@ -117,12 +114,9 @@ func processImages(api *slack.Client, directoryPath, slackChannel string) {
 
 	// Iterate through files in the directory
 	for _, file := range files {
-		// Check if the file is an image (you can customize the check based on your needs)
+		// Check if the file is an image
 		if isImage(file.Name()) {
-			// Prepare file path
 			filePath := filepath.Join(directoryPath, file.Name())
-
-			// Upload the image to Slack
 			err := uploadImageToSlack(api, filePath, slackChannel)
 			if err != nil {
 				fmt.Printf("File %s not uploaded. Error: %v\n", file.Name(), err)
@@ -142,7 +136,8 @@ func processImages(api *slack.Client, directoryPath, slackChannel string) {
 			if err != nil {
 				fmt.Printf("Error moving file %s to processed folder: %v\n", file.Name(), err)
 			} else {
-				fmt.Printf("File %s uploaded to Slack and moved to processed folder.\n", file.Name())
+				t := time.Now()
+				fmt.Printf("[Upload] %s %s uploaded to Slack and moved to processed folder.\n", t.Format("2006/01/02 - 15:04:05"), file.Name())
 			}
 		}
 	}
@@ -153,16 +148,14 @@ func processImages(api *slack.Client, directoryPath, slackChannel string) {
 }
 
 func uploadImageToSlack(api *slack.Client, filePath, slackChannel string) error {
-	// Open the image file
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
-	// Prepare the file upload parameters
 	params := slack.FileUploadParameters{
-		File:           filePath, // Use file path here
+		File:           filePath,
 		Filename:       filepath.Base(filePath),
 		Filetype:       "auto",
 		Title:          "Uploaded Image",
@@ -170,7 +163,6 @@ func uploadImageToSlack(api *slack.Client, filePath, slackChannel string) error 
 		InitialComment: "New image uploaded to Slack!",
 	}
 
-	// Upload the image to Slack
 	_, err = api.UploadFile(params)
 	if err != nil {
 		return err
@@ -180,7 +172,6 @@ func uploadImageToSlack(api *slack.Client, filePath, slackChannel string) error 
 }
 
 func isImage(fileName string) bool {
-	// You can customize this function based on the file extensions you want to consider as images
 	extensions := []string{".jpg", ".jpeg", ".png", ".gif"}
 	lowerCaseFileName := strings.ToLower(fileName)
 	for _, ext := range extensions {
@@ -190,4 +181,3 @@ func isImage(fileName string) bool {
 	}
 	return false
 }
-
