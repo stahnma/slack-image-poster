@@ -17,6 +17,7 @@ import (
 type ImageInfo struct {
 	ImagePath string `json:"image_path"`
 	Caption   string `json:"caption"`
+	Author    string `json:"author"`
 }
 
 func uploadHandler(c *gin.Context) {
@@ -73,6 +74,7 @@ func uploadHandler(c *gin.Context) {
 	}
 
 	// Create and save the JSON file
+	// TODO - remove the img extension from the json filename
 	jsonPath := filepath.Join(uploadDir, fmt.Sprintf("%s.json", imageName))
 	imageInfo := ImageInfo{ImagePath: imagePath, Caption: caption}
 	jsonData, err := json.MarshalIndent(imageInfo, "", "    ")
