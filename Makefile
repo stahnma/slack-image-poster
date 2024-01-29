@@ -21,7 +21,7 @@ build:  tidy
 	go build .
 
 clean:
-	rm -rf $(NAME) bin
+	rm -rf $(NAME) bin uploads discard *.log processed
 
 linux-arm64: tidy
 	GOOS=linux GOARCH=arm64  go build -o bin/$(NAME).linux-arm64 .
