@@ -5,7 +5,7 @@ echo $file
 
 curl -X POST \
   -F "image=@$file" \
-  -F "caption=OptionalCaption"  \
+  -F "caption=`fortune`"  \
   -H "X-API-KEY: abc123" \
 http://localhost:7171/upload
 
