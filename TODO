@@ -6,3 +6,13 @@ docs
 test with private channels
 add CI
 
+
+
+What to do if JSON is invaliad, but there is still an image hanging around?
+What if image has no corresponding json?
+What is json has no corresponding image?
+
+
+JSON is empty
+JSON is invalid
+JSON is valid but not a message
