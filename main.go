@@ -47,8 +47,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create a watcher
-
 	var err error
 	watcher, err = fsnotify.NewWatcher()
 	if err != nil {

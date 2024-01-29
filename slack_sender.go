@@ -74,31 +74,6 @@ func watchDirectory(directoryPath string, done chan struct{}) {
 	}
 }
 
-/*func setupProcessedFolder(filePath string) string {
-	// Move the processed image to the "processed" folder
-	processedFolder := filepath.Join(filepath.Dir(filePath), "../processed")
-	var err error
-	err = os.MkdirAll(processedFolder, 0755)
-	if err != nil {
-		log.Fatal("Error creating processed folder: ", err)
-	}
-	return processedFolder
-}
-*/
-
-/*func moveToProcessedFolder(filePath string, processedFolder string) {
-	destPath := filepath.Join(processedFolder, filepath.Base(filePath))
-	var err error
-	err = os.Rename(filePath, destPath)
-	if err != nil {
-		fmt.Printf("Error moving file %s to processed folder: %v\n", filepath.Base(filePath), err)
-	} else {
-		t := time.Now()
-		fmt.Printf("[SND] %s %s sent to Slack and moved to \"processed\" directory.\n", t.Format("2006/01/02 - 15:04:05"), filepath.Base(filePath))
-	}
-}
-*/
-
 func handleNewFile(filePath string) {
 	// if it's not an image, use the json file to see comment
 
@@ -126,8 +101,6 @@ func handleNewFile(filePath string) {
 			return
 		}
 		handleImageFile(j)
-		//		processedFolder := setupProcessedFolder(filePath)
-		//moveToProcessedFolder(filePath, processedFolder)
 		moveToDir(filePath, "processed")
 	}
 }
@@ -143,8 +116,6 @@ func handleImageFile(j ImageInfo) {
 			fmt.Printf("File %s not uploaded. Error: %v\n", filepath.Base(filePath), err)
 			return
 		}
-		//		processedFolder := setupProcessedFolder(filePath)
-		//moveToProcessedFolder(filePath, processedFolder)
 		moveToDir(filePath, "processed")
 	}
 }
@@ -198,7 +169,6 @@ func isImage(fileName string) bool {
 }
 
 func hasJsonExtension(fileName string) bool {
-
 	extensions := []string{".json"}
 	lowerCaseFileName := strings.ToLower(fileName)
 	for _, ext := range extensions {
@@ -221,7 +191,6 @@ func isJson(filename string) bool {
 		// See if it's valid JSON
 		var jsonData interface{}
 		err = json.Unmarshal(content, &jsonData)
-		log.Debugln("Json unmarhsalling error is ", err)
 		return err == nil
 	}
 	log.Debugln(filename + "Not a json file")

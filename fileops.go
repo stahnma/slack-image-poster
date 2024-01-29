@@ -34,17 +34,3 @@ func moveToDir(filePath string, directoryName string) {
 		fmt.Printf("[SND] %s %s sent to Slack and moved to \"processed\" directory.\n", t.Format("2006/01/02 - 15:04:05"), filepath.Base(filePath))
 	}
 }
-
-/*
-func moveToProcessedFolder(filePath string, processedFolder string) {
-	destPath := filepath.Join(processedFolder, filepath.Base(filePath))
-	var err error
-	err = os.Rename(filePath, destPath)
-	if err != nil {
-		fmt.Printf("Error moving file %s to processed folder: %v\n", filepath.Base(filePath), err)
-	} else {
-		t := time.Now()
-		fmt.Printf("[SND] %s %s sent to Slack and moved to \"processed\" directory.\n", t.Format("2006/01/02 - 15:04:05"), filepath.Base(filePath))
-	}
-
-*/
