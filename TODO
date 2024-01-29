@@ -1,0 +1,8 @@
+remove commented out code
+Handle discard for invalid json
+have a way to lookup authors
+setup configuration properly with viper and have a cleaner config file
+docs
+test with private channels
+add CI
+
