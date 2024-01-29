@@ -56,6 +56,7 @@ func uploadHandler(c *gin.Context) {
 	// Create a unique filename for the uploaded image
 	imageName := fmt.Sprintf("%d_%s", getCurrentTimestamp(), imageHeader.Filename)
 	uploadDir := os.Getenv("UPLOAD_DIR") // Read upload directory from environment variable
+	setupDirectory(uploadDir)
 	imagePath := filepath.Join(uploadDir, imageName)
 	file, err := os.Create(imagePath)
 	if err != nil {

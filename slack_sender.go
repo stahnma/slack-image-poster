@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	log "github.com/sirupsen/logrus"
 
@@ -36,9 +35,14 @@ func init() {
 
 	// Bind the command line flags to Viper
 	viper.BindPFlags(pflag.CommandLine)
+
+	//TODO move all configuration handling to here
 }
 
 func watchDirectory(directoryPath string, done chan struct{}) {
+	setupDirectory(directoryPath)
+	setupDirectory(directoryPath + "/../processed")
+	setupDirectory(directoryPath + "/../discard")
 	if err := watcher.Add(directoryPath); err != nil {
 		fmt.Println("Error watching directory:", err)
 		return
@@ -70,7 +74,7 @@ func watchDirectory(directoryPath string, done chan struct{}) {
 	}
 }
 
-func setupProcessedFolder(filePath string) string {
+/*func setupProcessedFolder(filePath string) string {
 	// Move the processed image to the "processed" folder
 	processedFolder := filepath.Join(filepath.Dir(filePath), "../processed")
 	var err error
@@ -80,8 +84,9 @@ func setupProcessedFolder(filePath string) string {
 	}
 	return processedFolder
 }
+*/
 
-func moveToProcessedFolder(filePath string, processedFolder string) {
+/*func moveToProcessedFolder(filePath string, processedFolder string) {
 	destPath := filepath.Join(processedFolder, filepath.Base(filePath))
 	var err error
 	err = os.Rename(filePath, destPath)
@@ -92,6 +97,7 @@ func moveToProcessedFolder(filePath string, processedFolder string) {
 		fmt.Printf("[SND] %s %s sent to Slack and moved to \"processed\" directory.\n", t.Format("2006/01/02 - 15:04:05"), filepath.Base(filePath))
 	}
 }
+*/
 
 func handleNewFile(filePath string) {
 	// if it's not an image, use the json file to see comment
@@ -120,6 +126,9 @@ func handleNewFile(filePath string) {
 			return
 		}
 		handleImageFile(j)
+		//		processedFolder := setupProcessedFolder(filePath)
+		//moveToProcessedFolder(filePath, processedFolder)
+		moveToDir(filePath, "processed")
 	}
 }
 
@@ -134,8 +143,9 @@ func handleImageFile(j ImageInfo) {
 			fmt.Printf("File %s not uploaded. Error: %v\n", filepath.Base(filePath), err)
 			return
 		}
-		processedFolder := setupProcessedFolder(filePath)
-		moveToProcessedFolder(filePath, processedFolder)
+		//		processedFolder := setupProcessedFolder(filePath)
+		//moveToProcessedFolder(filePath, processedFolder)
+		moveToDir(filePath, "processed")
 	}
 }
 
