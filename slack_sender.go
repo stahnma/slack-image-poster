@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"sync"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 
 	"github.com/fsnotify/fsnotify"
 	"github.com/nlopes/slack"
@@ -24,6 +24,12 @@ var (
 )
 
 func init() {
+
+	// Set up logging
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.DebugLevel)
+	//log.SetLevel(log.InfoLevel)
+
 	// Set up Viper to use command line flags
 	pflag.String("config", "", "config file (default is $HOME/.your_app.yaml)")
 	pflag.Bool("ready-systemd", false, "flag to indicate systemd readiness")
@@ -66,7 +72,7 @@ func watchDirectory(directoryPath string, done chan struct{}) {
 
 func setupProcessedFolder(filePath string) string {
 	// Move the processed image to the "processed" folder
-	processedFolder := filepath.Join(filepath.Dir(filePath), "processed")
+	processedFolder := filepath.Join(filepath.Dir(filePath), "../processed")
 	var err error
 	err = os.MkdirAll(processedFolder, 0755)
 	if err != nil {
@@ -82,7 +88,6 @@ func moveToProcessedFolder(filePath string, processedFolder string) {
 	if err != nil {
 		fmt.Printf("Error moving file %s to processed folder: %v\n", filepath.Base(filePath), err)
 	} else {
-		//	fmt.Printf("File %s uploaded to Slack and moved to processed folder.\n", filepath.Base(filePath))
 		t := time.Now()
 		fmt.Printf("[SND] %s %s sent to Slack and moved to \"processed\" directory.\n", t.Format("2006/01/02 - 15:04:05"), filepath.Base(filePath))
 	}
@@ -91,28 +96,40 @@ func moveToProcessedFolder(filePath string, processedFolder string) {
 func handleNewFile(filePath string) {
 	// if it's not an image, use the json file to see comment
 
-	fmt.Println("Inside handleNewFile", filePath)
-	api := slack.New(os.Getenv("SLACK_TOKEN"))
+	log.Debugln("Inside handleNewFile", filePath)
 	mu.Lock()
 	defer mu.Unlock()
 
-	/* type ImageInfo struct {
-			ImagePath string `json:"image_path"`
-			Caption   string `json:"caption"`
-	} */
-
-	if isJson(filepath.Base(filePath)) {
-		log.Fatal("Foudn a json file")
-		// parse json file
-		// get the comment from it
-		// get the filepath from it
-		// upload the image to slack
+	if isImage(filePath) {
+		return
 	}
 
+	if isJson(filePath) {
+		log.Debugln("Found a json file", filePath)
+		var j ImageInfo
+		var err error
+		content, err := ioutil.ReadFile(filePath)
+		if err != nil {
+			log.Debugln("I can't read the file", filePath)
+		}
+		err = json.Unmarshal(content, &j)
+		if err != nil {
+			// move the file to the invalid folder
+			log.Warnln("Unable to process " + filePath + " moving to invalid folder")
+			log.Debugln("Json unmarhsalling error is ", err)
+			return
+		}
+		handleImageFile(j)
+	}
+}
+
+func handleImageFile(j ImageInfo) {
+	api := slack.New(os.Getenv("SLACK_TOKEN"))
+	filePath := j.ImagePath
 	// Ensure the new file is an image
 	if isImage(filepath.Base(filePath)) {
 		// Upload the new image to Slack
-		err := uploadImageToSlack(api, filePath, os.Getenv("SLACK_CHANNEL"))
+		err := uploadImageToSlack(api, j, os.Getenv("SLACK_CHANNEL"))
 		if err != nil {
 			fmt.Printf("File %s not uploaded. Error: %v\n", filepath.Base(filePath), err)
 			return
@@ -122,68 +139,33 @@ func handleNewFile(filePath string) {
 	}
 }
 
-func processImages(api *slack.Client, directoryPath, slackChannel string) {
-	// List files in the specified directory
-	files, err := ioutil.ReadDir(directoryPath)
-	if err != nil {
-		fmt.Println("Error reading directory:", err)
-		os.Exit(1)
-	}
-
-	// Sort files by creation time (oldest first)
-	sort.Slice(files, func(i, j int) bool {
-		return files[i].ModTime().Before(files[j].ModTime())
-	})
-
-	// Iterate through files in the directory
-	for _, file := range files {
-		// Check if the file is an image
-		if isImage(file.Name()) {
-			filePath := filepath.Join(directoryPath, file.Name())
-			err := uploadImageToSlack(api, filePath, slackChannel)
-			if err != nil {
-				fmt.Printf("File %s not uploaded. Error: %v\n", file.Name(), err)
-				continue
-			}
-
-			// Move the processed image to the "processed" folder
-			processedFolder := filepath.Join(directoryPath, "processed")
-			err = os.MkdirAll(processedFolder, 0755)
-			if err != nil {
-				fmt.Printf("Error creating processed folder: %v\n", err)
-				continue
-			}
-
-			destPath := filepath.Join(processedFolder, file.Name())
-			err = os.Rename(filePath, destPath)
-			if err != nil {
-				fmt.Printf("Error moving file %s to processed folder: %v\n", file.Name(), err)
-			} else {
-				t := time.Now()
-				fmt.Printf("[Upload] %s %s uploaded to Slack and moved to processed folder.\n", t.Format("2006/01/02 - 15:04:05"), file.Name())
-			}
-		}
-	}
-
-	// Sleep for a while before processing again
-	time.Sleep(3 * time.Second)
-	processImages(api, directoryPath, slackChannel)
-}
-
-func uploadImageToSlack(api *slack.Client, filePath, slackChannel string) error {
+func uploadImageToSlack(api *slack.Client, j ImageInfo, slackChannel string) error {
+	filePath := j.ImagePath
 	file, err := os.Open(filePath)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
 
+	var comment, author string
+	if j.Caption == "" {
+		comment = "New image uploaded to Slack!"
+	} else {
+		comment = j.Caption
+	}
+	if j.Author == "" {
+		author = "Anonymous"
+	} else {
+		author = "Routine to be called"
+	}
+
 	params := slack.FileUploadParameters{
 		File:           filePath,
 		Filename:       filepath.Base(filePath),
 		Filetype:       "auto",
-		Title:          "Uploaded Image",
+		Title:          author,
 		Channels:       []string{slackChannel},
-		InitialComment: "New image uploaded to Slack!",
+		InitialComment: comment,
 	}
 
 	_, err = api.UploadFile(params)
@@ -206,6 +188,7 @@ func isImage(fileName string) bool {
 }
 
 func hasJsonExtension(fileName string) bool {
+
 	extensions := []string{".json"}
 	lowerCaseFileName := strings.ToLower(fileName)
 	for _, ext := range extensions {
@@ -217,16 +200,20 @@ func hasJsonExtension(fileName string) bool {
 }
 
 func isJson(filename string) bool {
-	fmt.Println("Inside isJson", filename)
+	log.Debugln("Inside isJson", filename)
 	if hasJsonExtension(filename) {
+		log.Debugln(filename + " Has Json extension")
 		content, err := ioutil.ReadFile(filename)
 		if err != nil {
+			log.Debugln("I can't read the file", filename)
 			return false
 		}
 		// See if it's valid JSON
 		var jsonData interface{}
 		err = json.Unmarshal(content, &jsonData)
+		log.Debugln("Json unmarhsalling error is ", err)
 		return err == nil
 	}
+	log.Debugln(filename + "Not a json file")
 	return false
 }
