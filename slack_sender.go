@@ -191,10 +191,13 @@ func isJson(filename string) bool {
 		// See if it's valid JSON
 		var jsonData interface{}
 		err = json.Unmarshal(content, &jsonData)
-		log.Debugln("Unable to parse json. Error is ", err)
-		moveToDir(filename, "discard")
-		log.Infoln("Moved " + filename + " to discard directory. Invalid JSON file or schema.")
-		return err == nil
+		if err != nil {
+			log.Debugln("Unable to parse json. Error is ", err)
+			moveToDir(filename, "discard")
+			log.Infoln("Moved " + filename + " to discard directory. Invalid JSON file or schema.")
+			return false
+		}
+		return true
 	}
 	log.Debugln(filename + "Not a json file")
 	return false
