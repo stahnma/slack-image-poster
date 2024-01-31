@@ -27,7 +27,6 @@ func init() {
 	// Set up logging
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
-	// log.SetLevel(log.InfoLevel)
 
 	// Set up Viper to use command line flags
 	pflag.String("config", "", "config file (default is $HOME/.your_app.yaml)")
@@ -37,12 +36,17 @@ func init() {
 	viper.BindPFlags(pflag.CommandLine)
 
 	// TODO move all configuration handling to here
+
+	// TODO FIXME need to ensure this is read from env and not just hard-coded
+	setupDirectory("./data")
+	setupDirectory("./data/credentials")
+	setupDirectory("./data/uploads")
+	setupDirectory("./data/discard")
+	setupDirectory("./data/processed")
+
 }
 
 func watchDirectory(directoryPath string, done chan struct{}) {
-	setupDirectory(directoryPath)
-	setupDirectory(directoryPath + "/../processed")
-	setupDirectory(directoryPath + "/../discard")
 	if err := watcher.Add(directoryPath); err != nil {
 		fmt.Println("Error watching directory:", err)
 		return

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"net/http"
 	"os"
 	"time"
 
@@ -19,6 +20,10 @@ type ApiEntry struct {
 	SlackId   string `json:"slack_id"`
 }
 
+type ApiKeyRequest struct {
+	SlackId string `json:"slack_id"`
+}
+
 func (ae ApiEntry) save() {
 	log.Debugln("Inside save")
 	// write the entry to JSON
@@ -28,7 +33,7 @@ func (ae ApiEntry) save() {
 		return
 	}
 	filename := ae.SlackId + ".json"
-	err = os.WriteFile(filename, jsonData, 0o644)
+	err = os.WriteFile("./data/credentials/"+filename, jsonData, 0o644)
 	if err != nil {
 		log.Warnln("Error writing to file:", err)
 		return
@@ -55,13 +60,28 @@ func invalidateApiKey() bool {
 }
 
 func apiEndpoint(c *gin.Context) {
+	// startTime := time.Now()
+	// Parse the form data, including files
 
+	var ae ApiKeyRequest
+	if err := c.ShouldBindJSON(&ae); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		log.Debugln("Error processing JSON POST")
+		return
+	}
+	log.Debugln("ae.SlackId is:", ae.SlackId)
+	slackId := ae.SlackId
+	if apikey := issueNewApiKey(slackId); apikey != "" {
+		c.JSON(http.StatusOK, gin.H{"status": "ok", "apikey": apikey})
+	} else {
+		c.JSON(http.StatusNetworkAuthenticationRequired, gin.H{"status": "SlackID not found for team."})
+	}
 }
 
 // TODO get team id from a global var
-func issueNewApiKey(slackId string) {
+func issueNewApiKey(slackId string) string {
 	// get the input from POST
-	log.Debugln("Inside issueNewApiKey")
+	log.Debugln("Inside issueNewApiKey. slackId", slackId)
 	// listen on /api
 	// if  you provide a slack UUID, we deliver an API key.
 	// The reason we don't just use the slack UUID is that anybody else could spoof you
@@ -69,11 +89,8 @@ func issueNewApiKey(slackId string) {
 	// slackteam = TTEGY45PB
 
 	var keyBlob ApiEntry
-	// b, err := validateSlackId("DTEGY4QDP", "TTEGY45PB")
-	b, err := validateSlackId(slackId, "TTEGY45PB")
-	if err != nil {
-		log.Errorln("Error validating slack id: ", err)
-	}
+	b := validateSlackId(slackId, "TTEGY45PB")
+	log.Debugln("validateSlackId returned: ", b)
 	// at this point we know the slack id is valid
 	if b {
 		keyBlob.IssueDate = time.Now().String()
@@ -81,11 +98,16 @@ func issueNewApiKey(slackId string) {
 		keyBlob.SlackId = slackId
 		// TODO creatre revocation mechanism
 		keyBlob.Revoked = false
+		log.Debugln("keyBlob: ", keyBlob.ApiKey)
+		keyBlob.save()
+		return keyBlob.ApiKey
 	}
+	return ""
 
 	// write api key to json file
 	// display it for http response
 	// generate new API key
+	// TODO logic here buddy
 }
 
 func generateApiKey() string {
@@ -95,19 +117,16 @@ func generateApiKey() string {
 	return key
 }
 
-func validateSlackId(userID, teamID string) (bool, error) {
+func validateSlackId(userID, teamID string) bool {
 	//FIXME: Load this into a global state
 	token := os.Getenv("SLACK_TOKEN")
-	log.Debugln("Inside validateSlackId")
+	log.Debugln("Inside validateSlackId. userId: ", userID, " teamId: ", teamID, " token: ", token)
 	api := slack.New(token)
-
-	// Get user info
 	userInfo, err := api.GetUserInfo(userID)
+	log.Debugln("userInfo.TeamID", userInfo.TeamID)
 	if err != nil {
 		log.Infoln("UserId " + userID + " not found in team " + teamID)
-		return false, err
+		return false
 	}
-
-	// Check if the user is in the specified team
-	return userInfo.TeamID == teamID, nil
+	return userInfo.TeamID == teamID
 }

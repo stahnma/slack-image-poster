@@ -48,3 +48,6 @@ install: build
 
  
 platforms: mac linux
+
+apirequest:
+	curl -X POST -H "Content-Type: application/json" -d @fixtures/api_request.json http://localhost:7171/api
