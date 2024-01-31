@@ -113,7 +113,7 @@ func getCurrentTimestamp() int64 {
 func receiver(done chan struct{}) {
 	// Read environment variables
 	uploadDir := os.Getenv("UPLOAD_DIR")
-	apiKey := os.Getenv("API_KEY")
+	//	apiKey := os.Getenv("API_KEY")
 	port := os.Getenv("UPLOAD_PORT")
 
 	// Validate environment variables
@@ -121,9 +121,9 @@ func receiver(done chan struct{}) {
 		log.Fatal("UPLOAD_DIR environment variable not set.")
 	}
 
-	if apiKey == "" {
-		log.Fatal("API_KEY environment variable not set.")
-	}
+	/* if apiKey == "" {
+	log.Fatal("API_KEY environment variable not set.")
+	} */
 
 	if port == "" {
 		port = "8080" // Default port
@@ -134,6 +134,7 @@ func receiver(done chan struct{}) {
 
 	// Set up the /upload route
 	router.POST("/upload", uploadHandler)
+	router.POST("/api", apiEndpoint)
 
 	// Start the server
 	router.Run(":" + port)
