@@ -27,7 +27,7 @@ func init() {
 	// Set up logging
 	log.SetOutput(os.Stdout)
 	log.SetLevel(log.DebugLevel)
-	//log.SetLevel(log.InfoLevel)
+	// log.SetLevel(log.InfoLevel)
 
 	// Set up Viper to use command line flags
 	pflag.String("config", "", "config file (default is $HOME/.your_app.yaml)")
@@ -36,7 +36,7 @@ func init() {
 	// Bind the command line flags to Viper
 	viper.BindPFlags(pflag.CommandLine)
 
-	//TODO move all configuration handling to here
+	// TODO move all configuration handling to here
 }
 
 func watchDirectory(directoryPath string, done chan struct{}) {

@@ -84,7 +84,7 @@ func uploadHandler(c *gin.Context) {
 		c.Error(fmt.Errorf("Error creating JSON: %v (Status: %d)", err, http.StatusInternalServerError))
 		return
 	}
-	err = os.WriteFile(jsonPath, jsonData, 0644)
+	err = os.WriteFile(jsonPath, jsonData, 0o644)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to save JSON"})
 		c.Error(fmt.Errorf("Error saving JSON file: %v (Status: %d)", err, http.StatusInternalServerError))

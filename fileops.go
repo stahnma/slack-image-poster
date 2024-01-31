@@ -17,13 +17,13 @@ func setupDirectory(directoryName string) {
 	}
 	*/
 	var err error
-	err = os.MkdirAll(directoryName, 0755)
+	err = os.MkdirAll(directoryName, 0o755)
 	if err != nil {
 		log.Fatal("Error creating "+directoryName+" directory: ", err)
 	}
 }
 
-func moveToDir(filePath string, directoryName string) {
+func moveToDir(filePath, directoryName string) {
 	destPath := filepath.Join(directoryName, filepath.Base(filePath))
 	var err error
 	err = os.Rename(filePath, destPath)
