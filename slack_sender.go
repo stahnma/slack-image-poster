@@ -35,18 +35,49 @@ func init() {
 	// Bind the command line flags to Viper
 	viper.BindPFlags(pflag.CommandLine)
 
-	// TODO move all configuration handling to here
+	// FIXME move other config here: slackToken, slackChannel, etc.
+	viper.SetDefault("port", "8080")
+	viper.SetDefault("data_dir", "data")
+	viper.BindEnv("port", "PORT")
+	viper.BindEnv("data_dir", "DATA_DIR")
 
-	// TODO FIXME need to ensure this is read from env and not just hard-coded
-	setupDirectory("./data")
-	setupDirectory("./data/credentials")
-	setupDirectory("./data/uploads")
-	setupDirectory("./data/discard")
-	setupDirectory("./data/processed")
+	var bugout bool
+	if value := os.Getenv("SLACK_TOKEN"); value == "" {
+		fmt.Println("SLACK_TOKEN environment variable not set.")
+		bugout = true
+	}
+	if value := os.Getenv("SLACK_CHANNEL"); value == "" {
+		fmt.Println("SLACK_CHANNEL environment variable not set.")
+		bugout = true
+	}
+	if bugout == true {
+		os.Exit(1)
+	}
+
+	viper.MustBindEnv("slack_token", "SLACK_TOKEN")
+	viper.MustBindEnv("slack_channel", "SLACK_CHANNEL")
+
+	viper.SetDefault("discard_dir", viper.GetString("data_dir")+"/discard")
+	viper.SetDefault("processed_dir", viper.GetString("data_dir")+"/processed")
+	viper.SetDefault("uploads_dir", viper.GetString("data_dir")+"/uploads")
+	viper.SetDefault("credentials_dir", viper.GetString("data_dir")+"/credentials")
+
+	viper.BindEnv("data_dir", "DATA_DIR")
+	viper.BindEnv("discard_dir", "DISCARD_DIR")
+	viper.BindEnv("processed_dir", "PROCESSED_DIR")
+	viper.BindEnv("uploads_dir", "UPLOADS_DIR")
+	viper.BindEnv("credentials_dir", "CREDENTIALS_DIR")
+
+	setupDirectory(viper.GetString("data_dir"))
+	setupDirectory(viper.GetString("discard_dir"))
+	setupDirectory(viper.GetString("processed_dir"))
+	setupDirectory(viper.GetString("uploads_dir"))
+	setupDirectory(viper.GetString("credentials_dir"))
 
 }
 
 func watchDirectory(directoryPath string, done chan struct{}) {
+	log.Debugln("Inside watchDirectory", directoryPath)
 	if err := watcher.Add(directoryPath); err != nil {
 		fmt.Println("Error watching directory:", err)
 		return
@@ -105,22 +136,22 @@ func handleNewFile(filePath string) {
 			return
 		}
 		handleImageFile(j)
-		moveToDir(filePath, "processed")
+		moveToDir(filePath, viper.GetString("processed_dir"))
 	}
 }
 
 func handleImageFile(j ImageInfo) {
-	api := slack.New(os.Getenv("SLACK_TOKEN"))
+	api := slack.New(viper.GetString("slack_token"))
 	filePath := j.ImagePath
 	// Ensure the new file is an image
 	if isImage(filepath.Base(filePath)) {
 		// Upload the new image to Slack
-		err := uploadImageToSlack(api, j, os.Getenv("SLACK_CHANNEL"))
+		err := uploadImageToSlack(api, j, viper.GetString("slack_channel"))
 		if err != nil {
 			fmt.Printf("File %s not uploaded. Error: %v\n", filepath.Base(filePath), err)
 			return
 		}
-		moveToDir(filePath, "processed")
+		moveToDir(filePath, viper.GetString("processed_dir"))
 	}
 }
 
@@ -183,21 +214,29 @@ func hasJsonExtension(fileName string) bool {
 	return false
 }
 
+// FIXME - handle sceanrio where a spare image is just in the upload dir
+func handleSpareImage(filePath string) {
+	log.Debugln("Inside handleSpareImage", filePath)
+	mu.Lock()
+	defer mu.Unlock()
+	moveToDir(filePath, viper.GetString("discard_dir"))
+}
+
 func isJson(filename string) bool {
 	log.Debugln("Inside isJson", filename)
 	if hasJsonExtension(filename) {
 		log.Debugln(filename + " Has Json extension")
 		content, err := ioutil.ReadFile(filename)
 		if err != nil {
-			log.Debugln("I can't read the file", filename)
+			log.Debugln("Unable to read file", filename)
 			return false
 		}
 		// See if it's valid JSON
 		var jsonData interface{}
 		err = json.Unmarshal(content, &jsonData)
 		if err != nil {
-			log.Debugln("Unable to parse json. Error is ", err)
-			moveToDir(filename, "discard")
+			log.Debugln("Unable to parse json. Error is", err)
+			moveToDir(filename, viper.GetString("discard_dir"))
 			log.Infoln("Moved " + filename + " to discard directory. Invalid JSON file or schema.")
 			return false
 		}

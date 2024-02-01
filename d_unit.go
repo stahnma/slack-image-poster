@@ -22,6 +22,7 @@ WantedBy=multi-user.target
 `
 
 // verify the envionment variables are set
+// FIXME move all of this to viper
 func verifyEnvVars() {
 	requiredEnvVars := []string{"SLACK_TOKEN", "IMAGE_DIRECTORY", "SLACK_CHANNEL"}
 	for _, envVar := range requiredEnvVars {

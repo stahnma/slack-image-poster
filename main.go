@@ -37,15 +37,6 @@ func main() {
 		systemd_unit()
 		os.Exit(0)
 	}
-	// Get Slack API token, directory path, Slack channel from environment variables
-	slackToken := os.Getenv("SLACK_TOKEN")
-	directoryPath := os.Getenv("UPLOAD_DIR")
-	slackChannel := os.Getenv("SLACK_CHANNEL")
-
-	if slackToken == "" || directoryPath == "" || slackChannel == "" {
-		fmt.Println("Please set SLACK_TOKEN, UPLOAD_DIR, and SLACK_CHANNEL environment variables.")
-		os.Exit(1)
-	}
 
 	var err error
 	watcher, err = fsnotify.NewWatcher()
@@ -57,7 +48,7 @@ func main() {
 	// Use channels to coordinate goroutines
 	done := make(chan struct{})
 
-	go watchDirectory(directoryPath, done)
+	go watchDirectory(viper.GetString("uploads_dir"), done)
 	go receiver(done)
 
 	// Block and wait for a signal to exit

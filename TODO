@@ -4,6 +4,8 @@ docs
 test with private channels
 add CI
 
+make LOG_LEVEL env var setting
+
 
 
 What to do if JSON is invaliad, but there is still an image hanging around?

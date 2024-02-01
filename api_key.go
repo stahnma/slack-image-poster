@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nlopes/slack"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 type ApiEntry struct {
@@ -32,7 +33,7 @@ func (ae ApiEntry) save() {
 		return
 	}
 	filename := ae.SlackId + ".json"
-	err = os.WriteFile("./data/credentials/"+filename, jsonData, 0o644)
+	err = os.WriteFile(viper.GetString("credentials_dir")+"/"+filename, jsonData, 0o644)
 	if err != nil {
 		log.Warnln("Error writing to file:", err)
 		return

@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 // ImageInfo represents the data to be stored in the JSON file
@@ -21,6 +22,8 @@ type ImageInfo struct {
 }
 
 func uploadHandler(c *gin.Context) {
+	// FIXME need logging throughout
+	log.Debugln("Inside uploadHandler")
 	// Check for the presence of the X-API-Key header
 	apiKey := c.GetHeader("X-API-Key")
 	expectedKey := os.Getenv("API_KEY") // Read API key from environment variable
@@ -28,6 +31,7 @@ func uploadHandler(c *gin.Context) {
 	if apiKey != expectedKey {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		c.Error(fmt.Errorf("Unauthorized request from IP: %s", c.ClientIP()))
+		log.Warnln("Request has invalid API key")
 		return
 	}
 
@@ -55,7 +59,7 @@ func uploadHandler(c *gin.Context) {
 
 	// Create a unique filename for the uploaded image
 	imageName := fmt.Sprintf("%d_%s", getCurrentTimestamp(), imageHeader.Filename)
-	uploadDir := os.Getenv("UPLOAD_DIR") // Read upload directory from environment variable
+	uploadDir := viper.GetString("uploads_dir")
 	setupDirectory(uploadDir)
 	imagePath := filepath.Join(uploadDir, imageName)
 	file, err := os.Create(imagePath)
@@ -111,31 +115,8 @@ func getCurrentTimestamp() int64 {
 }
 
 func receiver(done chan struct{}) {
-	// Read environment variables
-	uploadDir := os.Getenv("UPLOAD_DIR")
-	//	apiKey := os.Getenv("API_KEY")
-	port := os.Getenv("UPLOAD_PORT")
-
-	// Validate environment variables
-	if uploadDir == "" {
-		log.Fatal("UPLOAD_DIR environment variable not set.")
-	}
-
-	/* if apiKey == "" {
-	log.Fatal("API_KEY environment variable not set.")
-	} */
-
-	if port == "" {
-		port = "8080" // Default port
-	}
-
-	// Set up Gin with custom logging middleware
 	router := gin.New()
-
-	// Set up the /upload route
 	router.POST("/upload", uploadHandler)
 	router.POST("/api", apiEndpoint)
-
-	// Start the server
-	router.Run(":" + port)
+	router.Run(":" + viper.GetString("PORT"))
 }
