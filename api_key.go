@@ -26,7 +26,6 @@ type ApiKeyRequest struct {
 
 func (ae ApiEntry) save() {
 	log.Debugln("Inside save")
-	// write the entry to JSON
 	jsonData, err := json.Marshal(ae)
 	if err != nil {
 		log.Errorln("Error:", err)
@@ -39,7 +38,6 @@ func (ae ApiEntry) save() {
 		return
 	}
 	log.Debugln("JSON data written to", filename)
-
 }
 
 func validateApiKey() bool {
@@ -47,12 +45,25 @@ func validateApiKey() bool {
 	return false
 }
 
-func getAuthor() string {
+// FIXME what needs this?
 
+/*func getAuthor() string {
 	log.Debugln("Inside getAuthor")
-
+	//FIXME: Load this into a global state
+	token := os.Getenv("SLACK_TOKEN")
+	log.Debugln("Inside validateSlackId. userId: ", userID, " teamId: ", teamID, " token: ", token)
+	api := slack.New(token)
+	userInfo, err := api.GetUserInfo(userID)
+	log.Debugln("userInfo", userInfo)
+	if err != nil {
+		log.Infoln("UserId " + userID + " not found in team " + teamID)
+		return ""
+	}
 	return ""
+	//return userInfo.TeamID == teamID
+
 }
+*/
 
 func invalidateApiKey() bool {
 	log.Debugln("Inside invalidateApiKey")
@@ -80,14 +91,7 @@ func apiEndpoint(c *gin.Context) {
 
 // TODO get team id from a global var
 func issueNewApiKey(slackId string) string {
-	// get the input from POST
 	log.Debugln("Inside issueNewApiKey. slackId", slackId)
-	// listen on /api
-	// if  you provide a slack UUID, we deliver an API key.
-	// The reason we don't just use the slack UUID is that anybody else could spoof you
-	// stahnma = DTEGY4QDP
-	// slackteam = TTEGY45PB
-
 	var keyBlob ApiEntry
 	b := validateSlackId(slackId, "TTEGY45PB")
 	log.Debugln("validateSlackId returned: ", b)
@@ -103,11 +107,6 @@ func issueNewApiKey(slackId string) string {
 		return keyBlob.ApiKey
 	}
 	return ""
-
-	// write api key to json file
-	// display it for http response
-	// generate new API key
-	// TODO logic here buddy
 }
 
 func generateApiKey() string {
