@@ -26,6 +26,7 @@ func uploadHandler(c *gin.Context) {
 	log.Debugln("Inside uploadHandler")
 	// Check for the presence of the X-API-Key header
 	apiKey := c.GetHeader("X-API-Key")
+	// FIXME move retreival for this key to viper
 	expectedKey := os.Getenv("API_KEY") // Read API key from environment variable
 
 	if apiKey != expectedKey {
@@ -34,11 +35,8 @@ func uploadHandler(c *gin.Context) {
 		log.Warnln("Request has invalid API key")
 		return
 	}
-
-	// Capture the start time of the request
 	startTime := time.Now()
 
-	// Parse the form data, including files
 	err := c.Request.ParseMultipartForm(10 << 20) // 10 MB limit
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to parse form"})
@@ -46,7 +44,6 @@ func uploadHandler(c *gin.Context) {
 		return
 	}
 
-	// Get the image file and other form data
 	image, imageHeader, err := c.Request.FormFile("image")
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to get image"})
@@ -56,8 +53,6 @@ func uploadHandler(c *gin.Context) {
 	defer image.Close()
 
 	caption := c.Request.FormValue("caption")
-
-	// Create a unique filename for the uploaded image
 	imageName := fmt.Sprintf("%d_%s", getCurrentTimestamp(), imageHeader.Filename)
 	uploadDir := viper.GetString("uploads_dir")
 	setupDirectory(uploadDir)
@@ -78,7 +73,6 @@ func uploadHandler(c *gin.Context) {
 		return
 	}
 
-	// Create and save the JSON file
 	// TODO - remove the img extension from the json filename
 	jsonPath := filepath.Join(uploadDir, fmt.Sprintf("%s.json", imageName))
 	imageInfo := ImageInfo{ImagePath: imagePath, Caption: caption}
@@ -95,7 +89,6 @@ func uploadHandler(c *gin.Context) {
 		return
 	}
 
-	// Respond with success message
 	c.JSON(http.StatusOK, gin.H{"message": "Upload successful", "filename": imageName})
 
 	// Log the upload in the same format as [GIN] logging lines
