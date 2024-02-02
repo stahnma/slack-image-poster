@@ -5,10 +5,63 @@ import (
 	"os"
 
 	"github.com/fsnotify/fsnotify"
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"log"
 )
+
+func init() {
+	// Set up logging
+	log.SetOutput(os.Stdout)
+	log.SetLevel(log.DebugLevel)
+
+	// Set up Viper to use command line flags
+	pflag.String("config", "", "config file (default is $HOME/.your_app.yaml)")
+	pflag.Bool("ready-systemd", false, "flag to indicate systemd readiness")
+
+	// Bind the command line flags to Viper
+	viper.BindPFlags(pflag.CommandLine)
+
+	// FIXME move other config here: slackToken, slackChannel, etc.
+	viper.SetDefault("port", "8080")
+	viper.SetDefault("data_dir", "data")
+	viper.BindEnv("port", "PORT")
+	viper.BindEnv("data_dir", "DATA_DIR")
+
+	var bugout bool
+	if value := os.Getenv("SLACK_TOKEN"); value == "" {
+		fmt.Println("SLACK_TOKEN environment variable not set.")
+		bugout = true
+	}
+	if value := os.Getenv("SLACK_CHANNEL"); value == "" {
+		fmt.Println("SLACK_CHANNEL environment variable not set.")
+		bugout = true
+	}
+	if bugout == true {
+		os.Exit(1)
+	}
+
+	viper.MustBindEnv("slack_token", "SLACK_TOKEN")
+	viper.MustBindEnv("slack_channel", "SLACK_CHANNEL")
+
+	viper.SetDefault("discard_dir", viper.GetString("data_dir")+"/discard")
+	viper.SetDefault("processed_dir", viper.GetString("data_dir")+"/processed")
+	viper.SetDefault("uploads_dir", viper.GetString("data_dir")+"/uploads")
+	viper.SetDefault("credentials_dir", viper.GetString("data_dir")+"/credentials")
+
+	viper.BindEnv("data_dir", "DATA_DIR")
+	viper.BindEnv("discard_dir", "DISCARD_DIR")
+	viper.BindEnv("processed_dir", "PROCESSED_DIR")
+	viper.BindEnv("uploads_dir", "UPLOADS_DIR")
+	viper.BindEnv("credentials_dir", "CREDENTIALS_DIR")
+
+	setupDirectory(viper.GetString("data_dir"))
+	setupDirectory(viper.GetString("discard_dir"))
+	setupDirectory(viper.GetString("processed_dir"))
+	setupDirectory(viper.GetString("uploads_dir"))
+	setupDirectory(viper.GetString("credentials_dir"))
+
+}
 
 func main() {
 	pflag.CommandLine.Usage = func() {
