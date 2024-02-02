@@ -27,17 +27,23 @@ func uploadHandler(c *gin.Context) {
 	// Check for the presence of the X-API-Key header
 	apiKey := c.GetHeader("X-API-Key")
 	// FIXME move retreival for this key to viper
-	expectedKey := os.Getenv("API_KEY") // Read API key from environment variable
-
-	if apiKey != expectedKey {
+	// figure out what if the provided key is valid
+	isApiKeyValied, err := validateApiKey(apiKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+	}
+	if isApiKeyValied {
+		log.Debugln("API key is valid")
+	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		c.Error(fmt.Errorf("Unauthorized request from IP: %s", c.ClientIP()))
 		log.Warnln("Request has invalid API key")
 		return
 	}
+
 	startTime := time.Now()
 
-	err := c.Request.ParseMultipartForm(10 << 20) // 10 MB limit
+	err = c.Request.ParseMultipartForm(10 << 20) // 10 MB limit
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to parse form"})
 		c.Error(fmt.Errorf("Error parsing form data: %v (Status: %d)", err, http.StatusBadRequest))
@@ -111,5 +117,6 @@ func receiver(done chan struct{}) {
 	router := gin.New()
 	router.POST("/upload", uploadHandler)
 	router.POST("/api", apiEndpoint)
+	router.DELETE("/api", apiEndpoint)
 	router.Run(":" + viper.GetString("PORT"))
 }
