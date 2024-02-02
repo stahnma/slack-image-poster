@@ -144,15 +144,8 @@ func loadApiEntryFromFile(filePath string) (ApiEntry, error) {
 }
 */
 
-// TODO move this http handler to a separate file
-func apiEndpoint(c *gin.Context) {
-	// startTime := time.Now()
-	// Parse the form data, including files
-	// IF DELETE, then invalidate the key
-
+func deleteApiKeyHandler(c *gin.Context) {
 	apiKey := c.GetHeader("X-API-Key")
-
-	// DELETE
 	if c.Request.Method == "DELETE" {
 		log.Debugln("DELETE request")
 		good, err := validateApiKey(apiKey)
@@ -173,8 +166,9 @@ func apiEndpoint(c *gin.Context) {
 			c.JSON(http.StatusNetworkAuthenticationRequired, gin.H{"status": "error", "message": "Key not valid."})
 		}
 	}
+}
 
-	// POST
+func postApiKeyHandler(c *gin.Context) {
 	if c.Request.Method == "POST" {
 		var ae ApiKeyRequest
 		if err := c.ShouldBindJSON(&ae); err != nil {
@@ -190,8 +184,11 @@ func apiEndpoint(c *gin.Context) {
 			c.JSON(http.StatusNetworkAuthenticationRequired, gin.H{"status": "SlackID not found for team."})
 		}
 	}
+}
 
-	// TODO do a re-issue in a single operation
+func apiEndpoint(c *gin.Context) {
+	deleteApiKeyHandler(c)
+	postApiKeyHandler(c)
 }
 
 // TODO get team id from a global var
