@@ -21,8 +21,8 @@ type ImageInfo struct {
 	Author    string `json:"author"`
 }
 
+// FIXME Refactor this into shorter methods
 func uploadHandler(c *gin.Context) {
-	// FIXME need logging throughout
 	log.Debugln("(uploadHandler) Inside uploadHandler")
 	// Check for the presence of the X-API-Key header
 	apiKey := c.GetHeader("X-API-Key")
@@ -120,8 +120,9 @@ func getCurrentTimestamp() int64 {
 func receiver(done chan struct{}) {
 	router := gin.New()
 	router.POST("/upload", uploadHandler)
-	router.POST("/api", apiEndpoint)
-	router.DELETE("/api", apiEndpoint)
+	router.POST("/api", postApiKeyHandler)
+	// TODO implement the PUT method to replace the API key
+	router.DELETE("/api", deleteApiKeyHandler)
 	router.Run(":" + viper.GetString("PORT"))
 }
 
@@ -165,9 +166,4 @@ func postApiKeyHandler(c *gin.Context) {
 			c.JSON(http.StatusNetworkAuthenticationRequired, gin.H{"status": "SlackID not found for team."})
 		}
 	}
-}
-
-func apiEndpoint(c *gin.Context) {
-	deleteApiKeyHandler(c)
-	postApiKeyHandler(c)
 }
