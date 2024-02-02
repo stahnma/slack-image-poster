@@ -27,19 +27,19 @@ type ApiKeyRequest struct {
 }
 
 func (ae ApiEntry) save() {
-	log.Debugln("Inside save")
+	log.Debugln("(Save) Inside save")
 	jsonData, err := json.Marshal(ae)
 	if err != nil {
-		log.Errorln("Error:", err)
+		log.Errorln("(Save) Error:", err)
 		return
 	}
 	filename := ae.ApiKey + ".json"
 	err = os.WriteFile(viper.GetString("credentials_dir")+"/"+filename, jsonData, 0o644)
 	if err != nil {
-		log.Warnln("Error writing to file:", err)
+		log.Warnln("(Save) Error writing to file:", err)
 		return
 	}
-	log.Debugln("JSON data written to", filename)
+	log.Debugln("(Save) JSON data written to", filename)
 }
 
 func (ae ApiEntry) isRevoked() bool {
@@ -78,28 +78,28 @@ func searchAPIKeyInFile(filePath, searchString string) (bool, error) {
 
 // Fixme this is not quite right yet
 func validateApiKey(key string) (bool, error) {
-	log.Debugln("Inside validateApiKey")
+	log.Debugln("(validateApiKey)")
 	// give a key, scan all files  and look for it
 	matches, err := SearchAPIKeyInDirectory(key)
 	if err != nil {
 		log.Errorln("Error:", err)
 		return false, nil
 	}
-	log.Debugln("Matches", matches)
-	log.Debugln("Lenght of Matches", len(matches))
+	log.Debugln("(validateApiKey) Matches", matches)
+	log.Debugln("(validateApiKey) Lenght of Matches", len(matches))
 	if len(matches) < 1 {
 		return false, nil
 	}
 	for _, match := range matches {
-		log.Debugln("Match found in file:", match)
+		log.Debugln("(validateApiKey) Match found in file:", match)
 		isRev, err := isRevoked(match)
 		if err != nil {
-			log.Errorln("Error:", err)
+			log.Errorln("(validateApiKey) Error:", err)
 			return false, nil
 		}
-		revErr := errors.New("Key has been revoked")
+		revErr := errors.New("(validateApiKey) Key has been revoked")
 		if isRev {
-			log.Debugln("Key has been revoked")
+			log.Debugln("(validateApiKey) Key has been revoked")
 			return false, revErr
 		}
 	}
@@ -107,7 +107,7 @@ func validateApiKey(key string) (bool, error) {
 }
 
 func loadApiEntryFromFile(filePath string) (ApiEntry, error) {
-	log.Debugln("Inside loadApiEntryFromFile", filePath)
+	log.Debugln("(loadApiEntryFromFile)", filePath)
 	var ae ApiEntry
 	filecontent, err := os.ReadFile(filePath)
 	if err != nil {
@@ -143,10 +143,10 @@ func loadApiEntryFromFile(filePath string) (ApiEntry, error) {
 
 // TODO get team id from a global var
 func issueNewApiKey(slackId string) string {
-	log.Debugln("Inside issueNewApiKey. slackId", slackId)
+	log.Debugln("(issueNewApiKey) slackId", slackId)
 	var keyBlob ApiEntry
 	b := validateSlackId(slackId, "TTEGY45PB")
-	log.Debugln("validateSlackId returned: ", b)
+	log.Debugln("(issueNewApiKey) validateSlackId returned: ", b)
 	// at this point we know the slack id is valid
 	if b {
 		keyBlob.IssueDate = time.Now().String()
@@ -154,7 +154,7 @@ func issueNewApiKey(slackId string) string {
 		keyBlob.SlackId = slackId
 		// TODO creatre revocation mechanism
 		keyBlob.Revoked = false
-		log.Debugln("keyBlob: ", keyBlob.ApiKey)
+		log.Debugln("(issueNewApiKey) keyBlob: ", keyBlob.ApiKey)
 		keyBlob.save()
 		return keyBlob.ApiKey
 	}
@@ -162,7 +162,7 @@ func issueNewApiKey(slackId string) string {
 }
 
 func revokeApiKey(key string) bool {
-	log.Debugln("Inside revokeApiKey", key)
+	log.Debugln("(revokeApiKey)", key)
 	// find the key file
 	// change json to revoked = true
 	var ae ApiEntry
@@ -175,7 +175,7 @@ func revokeApiKey(key string) bool {
 	// read file into json struct
 	err = json.Unmarshal(filecontent, &ae)
 	if err != nil {
-		log.Errorln("Error unmarshalling json from keyfile ", keyfile, err)
+		log.Errorln("(revokeApiKey) Error unmarshalling json from keyfile ", keyfile, err)
 		return false
 	}
 	ae.Revoked = true
@@ -185,28 +185,27 @@ func revokeApiKey(key string) bool {
 
 // Fixme implement
 func isRevoked(filePath string) (bool, error) {
-	log.Debugln("Inside isRevoked", filePath)
+	log.Debugln("(isRevoked)", filePath)
 	ae, err := loadApiEntryFromFile(filePath)
 	if err != nil {
-		log.Errorln("Error loading api entry from file", filePath, err)
+		log.Errorln("(isRevoked) Error loading api entry from file", filePath, err)
 		// This is fail-safe
 		return true, err
 	}
-	log.Debugln("ae.Revoked", ae.Revoked)
+	log.Debugln("(isRevoked) ae.Revoked", ae.Revoked)
 	return ae.Revoked == true, nil
 }
 
 func generateApiKey() string {
-	log.Debugln("Inside generateApiKey")
 	key := uuid.NewString()
-	log.Debugln("Generated key: ", key)
+	log.Debugln("(generateApiKey)", key)
 	return key
 }
 
 func validateSlackId(userID, teamID string) bool {
 	//FIXME: Load this into a global state
 	token := os.Getenv("SLACK_TOKEN")
-	log.Debugln("Inside validateSlackId. userId: ", userID, " teamId: ", teamID, " token: ", token)
+	log.Debugln("(validateSlackId) userId: ", userID, " teamId: ", teamID, " token: ", token)
 	api := slack.New(token)
 	userInfo, err := api.GetUserInfo(userID)
 	log.Debugln("userInfo.TeamID", userInfo.TeamID)
