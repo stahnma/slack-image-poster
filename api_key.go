@@ -3,13 +3,11 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/nlopes/slack"
 	log "github.com/sirupsen/logrus"
@@ -125,7 +123,6 @@ func loadApiEntryFromFile(filePath string) (ApiEntry, error) {
 }
 
 // FIXME what needs this?
-
 /*func getAuthor() string {
 	log.Debugln("Inside getAuthor")
 	//FIXME: Load this into a global state
@@ -143,53 +140,6 @@ func loadApiEntryFromFile(filePath string) (ApiEntry, error) {
 
 }
 */
-
-func deleteApiKeyHandler(c *gin.Context) {
-	apiKey := c.GetHeader("X-API-Key")
-	if c.Request.Method == "DELETE" {
-		log.Debugln("DELETE request")
-		good, err := validateApiKey(apiKey)
-		if err != nil {
-			log.Warnln("Error:", err)
-			c.JSON(http.StatusNetworkAuthenticationRequired, gin.H{"status": "error", "message": err.Error()})
-		}
-		if good {
-			revoked := revokeApiKey(apiKey)
-			if revoked {
-				c.JSON(http.StatusOK, gin.H{"status": "ok", "message": "Key revoked."})
-			} else {
-				log.Errorln("Unable to revoke key, but key file found. This is bad.")
-				c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "Unable to revoke key."})
-			}
-		} else {
-			log.Warnln("Unalbe to revoke key because key not valid.", apiKey)
-			c.JSON(http.StatusNetworkAuthenticationRequired, gin.H{"status": "error", "message": "Key not valid."})
-		}
-	}
-}
-
-func postApiKeyHandler(c *gin.Context) {
-	if c.Request.Method == "POST" {
-		var ae ApiKeyRequest
-		if err := c.ShouldBindJSON(&ae); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			log.Debugln("Error processing JSON POST")
-			return
-		}
-		log.Debugln("ae.SlackId is:", ae.SlackId)
-		slackId := ae.SlackId
-		if apikey := issueNewApiKey(slackId); apikey != "" {
-			c.JSON(http.StatusOK, gin.H{"status": "ok", "apikey": apikey})
-		} else {
-			c.JSON(http.StatusNetworkAuthenticationRequired, gin.H{"status": "SlackID not found for team."})
-		}
-	}
-}
-
-func apiEndpoint(c *gin.Context) {
-	deleteApiKeyHandler(c)
-	postApiKeyHandler(c)
-}
 
 // TODO get team id from a global var
 func issueNewApiKey(slackId string) string {
