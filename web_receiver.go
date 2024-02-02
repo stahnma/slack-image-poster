@@ -23,14 +23,18 @@ type ImageInfo struct {
 
 func uploadHandler(c *gin.Context) {
 	// FIXME need logging throughout
-	log.Debugln("Inside uploadHandler")
+	log.Debugln("(uploadHandler) Inside uploadHandler")
 	// Check for the presence of the X-API-Key header
 	apiKey := c.GetHeader("X-API-Key")
 	// FIXME move retreival for this key to viper
 	// figure out what if the provided key is valid
 	isApiKeyValied, err := validateApiKey(apiKey)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		log.Debug("(uploadHandler) validateApiKey threw error")
+		if err.Error() != "Key has been revoked" {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+			return
+		}
 	}
 	if isApiKeyValied {
 		log.Debugln("API key is valid")
