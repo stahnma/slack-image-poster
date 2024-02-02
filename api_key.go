@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/nlopes/slack"
 	log "github.com/sirupsen/logrus"
+	"github.com/slack-go/slack"
 	"github.com/spf13/viper"
 )
 
@@ -203,15 +203,14 @@ func generateApiKey() string {
 }
 
 func validateSlackId(userID, teamID string) bool {
-	//FIXME: Load this into a global state
-	token := os.Getenv("SLACK_TOKEN")
+	token := viper.GetString("SLACK_TOKEN")
 	log.Debugln("(validateSlackId) userId: ", userID, " teamId: ", teamID, " token: ", token)
 	api := slack.New(token)
 	userInfo, err := api.GetUserInfo(userID)
-	log.Debugln("userInfo.TeamID", userInfo.TeamID)
 	if err != nil {
-		log.Infoln("UserId " + userID + " not found in team " + teamID)
+		log.Errorln("Unable to retrieve user info from slack for user id: ", userID, " team id: ", teamID, " error: ", err)
 		return false
 	}
+	log.Debugln("(validateSlackId) userInfo.TeamID", userInfo.TeamID)
 	return userInfo.TeamID == teamID
 }

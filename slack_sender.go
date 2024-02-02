@@ -12,7 +12,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/fsnotify/fsnotify"
-	"github.com/nlopes/slack"
+	"github.com/slack-go/slack"
 	"github.com/spf13/viper"
 )
 
