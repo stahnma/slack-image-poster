@@ -84,21 +84,42 @@ func handleNewFile(filePath string) {
 }
 
 func handleImageFile(j ImageInfo) {
-	api := slack.New(viper.GetString("slack_token"))
 	filePath := j.ImagePath
-	// Ensure the new file is an image
 	if isImage(filepath.Base(filePath)) {
-		// Upload the new image to Slack
-		err := uploadImageToSlack(api, j, viper.GetString("slack_channel"))
+		err := uploadImageToSlack(j)
 		if err != nil {
-			log.Errorln("File %s not uploaded. Error: %v\n", filepath.Base(filePath), err)
+			log.Errorf("File %s not uploaded. Error: %v\n", filepath.Base(filePath), err)
 			return
 		}
 		moveToDir(filePath, viper.GetString("processed_dir"))
 	}
 }
 
-func uploadImageToSlack(api *slack.Client, j ImageInfo, slackChannel string) error {
+func getAuthor(apiKey string) string {
+	log.Debugln("(getAuthor)" + apiKey)
+	//FIXME: Load this into a global state
+
+	filename := viper.GetString("credentials_dir") + "/" + apiKey + ".json"
+	ae, err := loadApiEntryFromFile(filename)
+	if err != nil {
+		log.Errorln("Unable to load api entry from file: ", apiKey, " error: ", err)
+	}
+	token := viper.GetString("SLACK_TOKEN")
+	slackApi := slack.New(token)
+	// Wat to do with this?
+	userInfo, err := slackApi.GetUserInfo(ae.SlackId)
+	if err != nil {
+		log.Errorln("Unable to retrieve user info from slack for user id: ", ae.SlackId, " error: ", err)
+		return "Errored Author"
+	}
+	log.Debugln("(getAuthor) userInfo.profile.display_name_normalized", userInfo.Profile.DisplayNameNormalized)
+	return userInfo.Profile.DisplayNameNormalized
+}
+
+func uploadImageToSlack(j ImageInfo) error {
+	slack_token := viper.GetString("slack_token")
+	slack_channel := viper.GetString("slack_channel")
+	slackApi := slack.New(slack_token)
 	filePath := j.ImagePath
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -106,32 +127,26 @@ func uploadImageToSlack(api *slack.Client, j ImageInfo, slackChannel string) err
 	}
 	defer file.Close()
 
-	var comment, author string
+	var comment string
 	if j.Caption == "" {
 		comment = "New image uploaded to Slack!"
 	} else {
 		comment = j.Caption
-	}
-	if j.Author == "" {
-		author = "Anonymous"
-	} else {
-		author = "Routine to be called"
 	}
 
 	params := slack.FileUploadParameters{
 		File:           filePath,
 		Filename:       filepath.Base(filePath),
 		Filetype:       "auto",
-		Title:          author,
-		Channels:       []string{slackChannel},
+		Title:          getAuthor(j.ApiKey),
+		Channels:       []string{slack_channel},
 		InitialComment: comment,
 	}
 
-	_, err = api.UploadFile(params)
+	_, err = slackApi.UploadFile(params)
 	if err != nil {
 		return err
 	}
-
 	return nil
 }
 
