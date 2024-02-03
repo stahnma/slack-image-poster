@@ -37,7 +37,7 @@ func uploadHandler(c *gin.Context) {
 		}
 	}
 	if isApiKeyValied {
-		log.Debugln("API key is valid")
+		log.Debugln("(uploadHandler) API key is valid")
 	} else {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		c.Error(fmt.Errorf("Unauthorized request from IP: %s", c.ClientIP()))
@@ -129,7 +129,7 @@ func receiver(done chan struct{}) {
 func deleteApiKeyHandler(c *gin.Context) {
 	apiKey := c.GetHeader("X-API-Key")
 	if c.Request.Method == "DELETE" {
-		log.Debugln("DELETE request")
+		log.Debugln("(deleteApiKeyHandler) DELETE request")
 		good, err := validateApiKey(apiKey)
 		if err != nil {
 			log.Warnln("Error:", err)
@@ -144,7 +144,7 @@ func deleteApiKeyHandler(c *gin.Context) {
 				c.JSON(http.StatusInternalServerError, gin.H{"status": "error", "message": "Unable to revoke key."})
 			}
 		} else {
-			log.Warnln("Unalbe to revoke key because key not valid.", apiKey)
+			log.Warnln("Unablee to revoke key because key is not valid.", apiKey)
 			c.JSON(http.StatusNetworkAuthenticationRequired, gin.H{"status": "error", "message": "Key not valid."})
 		}
 	}
@@ -155,10 +155,10 @@ func postApiKeyHandler(c *gin.Context) {
 		var ae ApiKeyRequest
 		if err := c.ShouldBindJSON(&ae); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			log.Debugln("Error processing JSON POST")
+			log.Debugln("(postApiKeyHandler) Error processing JSON POST")
 			return
 		}
-		log.Debugln("ae.SlackId is:", ae.SlackId)
+		log.Debugln("(postApiKeyHandler) ae.SlackId is:", ae.SlackId)
 		slackId := ae.SlackId
 		if apikey := issueNewApiKey(slackId); apikey != "" {
 			c.JSON(http.StatusOK, gin.H{"status": "ok", "apikey": apikey})
