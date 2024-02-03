@@ -21,19 +21,15 @@ type ImageInfo struct {
 	ApiKey    string `json:"api_key"`
 }
 
-// FIXME Refactor this into shorter methods
-func uploadHandler(c *gin.Context) {
-	log.Debugln("(uploadHandler) Inside uploadHandler")
-	// Check for the presence of the X-API-Key header
+func uploadAuthorization(c *gin.Context) error {
+	log.Debugln("(uploadAuthorizion) Inside uploadAuthorizion")
 	apiKey := c.GetHeader("X-API-Key")
-	// FIXME move retreival for this key to viper
-	// figure out what if the provided key is valid
 	isApiKeyValied, err := validateApiKey(apiKey)
 	if err != nil {
 		log.Debug("(uploadHandler) validateApiKey threw error")
 		if err.Error() != "Key has been revoked" {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err})
-			return
+			return err
 		}
 	}
 	if isApiKeyValied {
@@ -42,12 +38,22 @@ func uploadHandler(c *gin.Context) {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 		c.Error(fmt.Errorf("Unauthorized request from IP: %s", c.ClientIP()))
 		log.Warnln("Request has invalid API key")
+		return err
+	}
+	return nil
+}
+
+// FIXME Refactor this into shorter methods
+func uploadHandler(c *gin.Context) {
+	log.Debugln("(uploadHandler) Inside uploadHandler")
+	apiKey := c.GetHeader("X-API-Key")
+	if err := uploadAuthorization(c); err != nil {
 		return
 	}
 
 	startTime := time.Now()
 
-	err = c.Request.ParseMultipartForm(10 << 20) // 10 MB limit
+	err := c.Request.ParseMultipartForm(10 << 20) // 10 MB limit
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Unable to parse form"})
 		c.Error(fmt.Errorf("Error parsing form data: %v (Status: %d)", err, http.StatusBadRequest))
