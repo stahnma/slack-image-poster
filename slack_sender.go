@@ -97,8 +97,6 @@ func handleImageFile(j ImageInfo) {
 
 func getAuthor(apiKey string) string {
 	log.Debugln("(getAuthor)" + apiKey)
-	//FIXME: Load this into a global state
-
 	filename := viper.GetString("credentials_dir") + "/" + apiKey + ".json"
 	ae, err := loadApiEntryFromFile(filename)
 	if err != nil {
@@ -106,11 +104,10 @@ func getAuthor(apiKey string) string {
 	}
 	token := viper.GetString("SLACK_TOKEN")
 	slackApi := slack.New(token)
-	// Wat to do with this?
 	userInfo, err := slackApi.GetUserInfo(ae.SlackId)
 	if err != nil {
 		log.Errorln("Unable to retrieve user info from slack for user id: ", ae.SlackId, " error: ", err)
-		return "Errored Author"
+		return "Author Unknown (Error retrieving user info from slack)"
 	}
 	log.Debugln("(getAuthor) userInfo.profile.display_name_normalized", userInfo.Profile.DisplayNameNormalized)
 	return userInfo.Profile.DisplayNameNormalized
