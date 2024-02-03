@@ -18,7 +18,7 @@ import (
 type ImageInfo struct {
 	ImagePath string `json:"image_path"`
 	Caption   string `json:"caption"`
-	Author    string `json:"author"`
+	ApiKey    string `json:"api_key"`
 }
 
 // FIXME Refactor this into shorter methods
@@ -85,7 +85,7 @@ func uploadHandler(c *gin.Context) {
 
 	// TODO - remove the img extension from the json filename
 	jsonPath := filepath.Join(uploadDir, fmt.Sprintf("%s.json", imageName))
-	imageInfo := ImageInfo{ImagePath: imagePath, Caption: caption}
+	imageInfo := ImageInfo{ImagePath: imagePath, Caption: caption, ApiKey: apiKey}
 	jsonData, err := json.MarshalIndent(imageInfo, "", "    ")
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Unable to create JSON"})
@@ -121,8 +121,8 @@ func receiver(done chan struct{}) {
 	router := gin.New()
 	router.POST("/upload", uploadHandler)
 	router.POST("/api", postApiKeyHandler)
-	// TODO implement the PUT method to replace the API key
 	router.DELETE("/api", deleteApiKeyHandler)
+	// TODO implement the PUT method to replace the API key
 	router.Run(":" + viper.GetString("PORT"))
 }
 
