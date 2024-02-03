@@ -122,25 +122,6 @@ func loadApiEntryFromFile(filePath string) (ApiEntry, error) {
 	return ae, nil
 }
 
-// FIXME what needs this?
-/*func getAuthor() string {
-	log.Debugln("Inside getAuthor")
-	//FIXME: Load this into a global state
-	token := os.Getenv("SLACK_TOKEN")
-	log.Debugln("Inside validateSlackId. userId: ", userID, " teamId: ", teamID, " token: ", token)
-	api := slack.New(token)
-	userInfo, err := api.GetUserInfo(userID)
-	log.Debugln("userInfo", userInfo)
-	if err != nil {
-		log.Infoln("UserId " + userID + " not found in team " + teamID)
-		return ""
-	}
-	return ""
-	//return userInfo.TeamID == teamID
-
-}
-*/
-
 // TODO get team id from a global var
 func issueNewApiKey(slackId string) string {
 	log.Debugln("(issueNewApiKey) slackId", slackId)
