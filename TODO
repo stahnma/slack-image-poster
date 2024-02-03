@@ -1,11 +1,9 @@
-have a way to lookup authors
 setup configuration properly with viper and have a cleaner config file
 docs
 test with private channels
 add CI
 
 make LOG_LEVEL env var setting
-
 
 
 What to do if JSON is invaliad, but there is still an image hanging around?
@@ -16,3 +14,6 @@ What is json has no corresponding image?
 JSON is empty
 JSON is invalid
 JSON is valid but not a message
+
+
+All the FIXMEs and TODOs
