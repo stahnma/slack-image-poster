@@ -1,11 +1,13 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	log "github.com/sirupsen/logrus"
 	"os"
 	"path/filepath"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 func setupDirectory(directoryName string) {
@@ -33,4 +35,13 @@ func moveToDir(filePath, directoryName string) {
 		t := time.Now()
 		fmt.Printf("[SND] %s %s sent to Slack and moved to \"processed\" directory.\n", t.Format("2006/01/02 - 15:04:05"), filepath.Base(filePath))
 	}
+}
+
+func prettyPrintJSON(data interface{}) error {
+	prettyJSON, err := json.MarshalIndent(data, "", "  ")
+	if err != nil {
+		return err
+	}
+	log.Println(string(prettyJSON))
+	return nil
 }
